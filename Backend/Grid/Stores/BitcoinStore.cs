@@ -19,7 +19,7 @@ public class BitcoinStore : IBitcoinStore
 
     public async Task<BitcoinDetailModel[]> GetAsync()
     {
-        return await _dbContext.BitcoinDetails.ToArrayAsync();
+        return await _dbContext.BitcoinDetails.OrderByDescending(x => x.Time).ToArrayAsync();
     }
 
     public async Task<string?> InsertAsync(BitcoinDetailModel model)
