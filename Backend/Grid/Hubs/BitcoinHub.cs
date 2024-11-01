@@ -18,50 +18,48 @@ public class BitcoinHub : Hub
         _bitcoinService = bitcoinService;
         _configuration = configuration;
     }
-    
+
     public override async Task OnConnectedAsync()
     {
-        _connectedClients++;
-        await base.OnConnectedAsync();
-
-        if (_connectedClients == 1)
+        Interlocked.Increment(ref _connectedClients);
+        lock (_lock)
         {
-            StartBroadcastBitcoinPrice();
+            if (_connectedClients == 1)
+            {
+                StartBroadcastBitcoinPrice();
+            }
         }
+        await base.OnConnectedAsync();
     }
 
     public override async Task OnDisconnectedAsync(Exception? exception)
     {
-        _connectedClients--;
-        await base.OnDisconnectedAsync(exception);
-
-        if (_connectedClients == 0)
+        Interlocked.Decrement(ref _connectedClients);
+        lock (_lock)
         {
-            StopBroadcastBitcoinPrice();
+            if (_connectedClients == 0)
+            {
+                StopBroadcastBitcoinPrice();
+            }
         }
+        await base.OnDisconnectedAsync(exception);
     }
 
     private void StartBroadcastBitcoinPrice()
     {
-        lock (_lock)
-        {
-            if (_isBroadcasting)
-                return;
+        if (_isBroadcasting)
+            return;
 
-            _timer = new Timer(async _ =>
-                await _bitcoinService.BroadcastBitcoinResponseAsync(), null,
-                TimeSpan.Zero, TimeSpan.FromSeconds(_configuration.GetValue<int>("BroadcastInterval")));
-            _isBroadcasting = true;
-        }
+        _timer = new Timer(async _ =>
+            await _bitcoinService.BroadcastBitcoinResponseAsync(), null,
+            TimeSpan.Zero, TimeSpan.FromSeconds(_configuration.GetValue<int>("BroadcastInterval")));
+        _isBroadcasting = true;
     }
 
     private void StopBroadcastBitcoinPrice()
     {
-        lock (_lock)
-        {
-            _timer?.Dispose();
-            _timer = null;
-            _isBroadcasting = false;
-        }
+        _timer?.Dispose();
+        _timer = null;
+        _isBroadcasting = false;
     }
 }
